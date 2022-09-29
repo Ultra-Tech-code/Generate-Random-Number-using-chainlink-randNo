@@ -2,9 +2,9 @@
 // An example of a consumer contract that relies on a subscription for funding.
 pragma solidity ^0.8.7;
 
-import '@chainlink/contracts/src/v0.8/interfaces/VRFCoordinatorV2Interface.sol';
-import '@chainlink/contracts/src/v0.8/VRFConsumerBaseV2.sol';
-import '@chainlink/contracts/src/v0.8/ConfirmedOwner.sol';
+import "@chainlink/contracts/src/v0.8/interfaces/VRFCoordinatorV2Interface.sol";
+import "@chainlink/contracts/src/v0.8/VRFConsumerBaseV2.sol";
+import "@chainlink/contracts/src/v0.8/ConfirmedOwner.sol";
 
 /**
  * Request testnet LINK and ETH here: https://faucets.chain.link/
@@ -17,7 +17,7 @@ import '@chainlink/contracts/src/v0.8/ConfirmedOwner.sol';
  * DO NOT USE THIS CODE IN PRODUCTION.
  */
 
-contract VRFv2Consumer is VRFConsumerBaseV2, ConfirmedOwner {
+contract RandomNo is VRFConsumerBaseV2, ConfirmedOwner {
     event RequestSent(uint256 requestId, uint32 numWords);
     event RequestFulfilled(uint256 requestId, uint256[] randomWords);
 
@@ -39,7 +39,8 @@ contract VRFv2Consumer is VRFConsumerBaseV2, ConfirmedOwner {
     // The gas lane to use, which specifies the maximum gas price to bump to.
     // For a list of available gas lanes on each network,
     // see https://docs.chain.link/docs/vrf/v2/subscription/supported-networks/#configurations
-    bytes32 keyHash = 0x79d3d8832d904592c0bf9818b621522c988bb8b0c05cdc3b15aea1b6e8db0c15;
+    bytes32 keyHash =
+        0x79d3d8832d904592c0bf9818b621522c988bb8b0c05cdc3b15aea1b6e8db0c15;
 
     // Depends on the number of requested values that you want sent to the
     // fulfillRandomWords() function. Storing each word costs about 20,000 gas,
@@ -54,7 +55,7 @@ contract VRFv2Consumer is VRFConsumerBaseV2, ConfirmedOwner {
 
     // For this example, retrieve 2 random values in one request.
     // Cannot exceed VRFCoordinatorV2.MAX_NUM_WORDS.
-    uint32 numWords = 2;
+    uint32 numWords = 10;
 
     /**
      * HARDCODED FOR GOERLI
@@ -64,12 +65,18 @@ contract VRFv2Consumer is VRFConsumerBaseV2, ConfirmedOwner {
         VRFConsumerBaseV2(0x2Ca8E0C643bDe4C2E08ab1fA0da3401AdAD7734D)
         ConfirmedOwner(msg.sender)
     {
-        COORDINATOR = VRFCoordinatorV2Interface(0x2Ca8E0C643bDe4C2E08ab1fA0da3401AdAD7734D);
+        COORDINATOR = VRFCoordinatorV2Interface(
+            0x2Ca8E0C643bDe4C2E08ab1fA0da3401AdAD7734D
+        );
         s_subscriptionId = subscriptionId;
     }
 
     // Assumes the subscription is funded sufficiently.
-    function requestRandomWords() external onlyOwner returns (uint256 requestId) {
+    function requestRandomWords()
+        external
+        onlyOwner
+        returns (uint256 requestId)
+    {
         // Will revert if subscription is not set and funded.
         requestId = COORDINATOR.requestRandomWords(
             keyHash,
@@ -78,40 +85,52 @@ contract VRFv2Consumer is VRFConsumerBaseV2, ConfirmedOwner {
             callbackGasLimit,
             numWords
         );
-        s_requests[requestId] = RequestStatus({randomWords: new uint256[](0), exists: true, fulfilled: false});
+        s_requests[requestId] = RequestStatus({
+            randomWords: new uint256[](0),
+            exists: true,
+            fulfilled: false
+        });
         requestIds.push(requestId);
         lastRequestId = requestId;
         emit RequestSent(requestId, numWords);
         return requestId;
     }
 
-    function fulfillRandomWords(uint256 _requestId, uint256[] memory _randomWords) internal override {
-        require(s_requests[_requestId].exists, 'request not found');
+    function fulfillRandomWords(
+        uint256 _requestId,
+        uint256[] memory _randomWords
+    ) internal override {
+        require(s_requests[_requestId].exists, "request not found");
         s_requests[_requestId].fulfilled = true;
         s_requests[_requestId].randomWords = _randomWords;
         emit RequestFulfilled(_requestId, _randomWords);
     }
 
-    function getRequestStatus(uint256 _requestId) external view returns (bool fulfilled, uint256[] memory randomWords) {
-        require(s_requests[_requestId].exists, 'request not found');
+    function getRequestStatus(uint256 _requestId)
+        external
+        view
+        returns (bool fulfilled, uint256[] memory randomWords)
+    {
+        require(s_requests[_requestId].exists, "request not found");
         RequestStatus memory request = s_requests[_requestId];
         return (request.fulfilled, request.randomWords);
     }
 
+    function resolve(uint _rId) public view returns (uint32[10] memory nos_) {
+        for (uint i = 0; i < 10; i++) {
+            nos_[i] = gen(i, _rId);
+        }
+    }
 
-     function resolve(uint _rId) public view returns(uint32[10] memory nos_){
-        for(uint i=0;i<10;i++){
-     nos_[i]=gen(i,_rId);
- 
-}
-     }
-    function gen(uint index,uint256 _rId) internal view returns(uint32 l_){
-    uint256 k=index >> (45-index) << 128;
-    bytes memory entropy=abi.encode(keccak256(abi.encode(k,index)));
-    bytes32 entropy2=(blockhash(block.number+index))>>index;
-    bytes memory concat= abi.encode(entropy2,entropy);
-     uint256 kk=uint256(keccak256(abi.encodePacked(concat,index<<block.number)));
-     kk=uint128(kk);
-     l_=uint32(kk+s_requests[_rId].randomWords[0]);
-}
+    function gen(uint index, uint256 _rId) internal view returns (uint32 l_) {
+        uint256 k = (index >> (45 - index)) << 128;
+        bytes memory entropy = abi.encode(keccak256(abi.encode(k, index)));
+        bytes32 entropy2 = (blockhash(block.number + index)) >> index;
+        bytes memory concat = abi.encode(entropy2, entropy);
+        uint256 kk = uint256(
+            keccak256(abi.encodePacked(concat, index << block.number))
+        );
+        kk = uint128(kk);
+        l_ = uint32(kk + s_requests[_rId].randomWords[0]);
+    }
 }
